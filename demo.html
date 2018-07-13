@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+
+<head>
+    <title>拼图游戏Demo</title>
+    <style>
+        *:not(input) {
+            font-size: 0;
+        }
+        canvas{
+            transition:transform 0.3s;
+        }
+        .game-wrapper{
+            padding:50px;
+            border:1px skyblue solid;
+            border-radius: 5px;
+        }
+        .parameters{
+            margin-bottom:50px;
+        }
+        .parameters *{
+            display:inline-block;
+            font-size: 20px;
+        }
+        #result{
+            font-size: 20px;
+        }
+        p{
+            font-size: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- <canvas id="canvas"></canvas> -->
+    <input id="changeImg" type="file">
+    <image id="img" src="photo.png" hidden></image>
+    <p>游戏说明：1.请不要选择尺寸太大的图片。2.点击图片进行旋转。3.拖动图片交换位置。4.自行设置列数、行数以调整难度。要求输入大于等于2的整数。5.最终将图片还原成原始图片获得胜利</p>
+    <div class="parameters">
+        <p>列数</p>
+        <input id="x" type="number">
+        <p>行数</p>
+        <input id="y" type="number">
+        <button id="btn">确定</button>
+    </div>
+    <p><span id="result"></span></p>
+    <div class="game-wrapper">
+        <div id="gameArea"></div>
+    </div>
+</body>
+<script>
+    var image = document.querySelector('#img');
+    var area = document.querySelector('#gameArea');
+    var getX=document.querySelector('#x');
+    var getY=document.querySelector('#y');
+    var setXY=document.querySelector('#btn');
+    var changeImg=document.querySelector('#changeImg');
+    var reP=document.querySelector('#result');
+    
+    changeImg.onchange=function(){
+        var file = changeImg.files[0];
+        if (!/image\/\w+/.test(file.type)) {
+            alert("文件必须为图片！");
+            return false;
+        }
+        var reader = new FileReader();
+        reader.addEventListener("load", function () {
+            image.src = reader.result;
+        }, false);
+
+        if (file) {
+            reader.readAsDataURL(file);
+        }
+    }
+    var X = 2;
+    var Y = 2;
+    setXY.onclick=function(){
+        if(getX.value<2||getY.value<2){
+            alert("请输入大于2的整数");
+        }
+        else{
+            area.innerHTML='';
+            X=getX.value;
+            Y=getY.value;
+            image.src = 'photo.png';
+        }
+    }
+    image.onload = function () {
+        area.innerHTML='';
+        width = image.width;
+        height = image.height;
+        xPart = width / X;
+        yPart = height / Y;
+        area.style.width = width+'px';
+        area.style.height = height+'px';
+        for (var i = 0; i < X * Y; i++) {
+            var xRand = Math.random();
+            var yRand = Math.random();
+            var newCanvas = document.createElement('canvas');
+            var newContext = newCanvas.getContext('2d');
+            newCanvas.width = xPart;
+            newCanvas.height = yPart;
+            newCanvas.draggable=true;
+            var dir=Math.round(Math.random()*4);
+            newCanvas.setAttribute('dir',dir);
+            canvasRotate(newCanvas,dir);
+            newCanvas.id = 'no-' + i;
+            newContext.drawImage(image, i % X *xPart, Math.floor(i / X) * yPart, xPart, yPart, 0, 0, xPart, yPart);
+            if(area.childElementCount===0){
+                area.appendChild(newCanvas);
+            }
+            else{
+                var random=Math.random();
+                if(random<0.5){
+                    var appendPosition=Math.round(random*(area.childElementCount));
+                    area.children[appendPosition].before(newCanvas);
+                }
+                else{
+                    var appendPosition=Math.round(random*(area.childElementCount-1));
+                    area.children[appendPosition].after(newCanvas);
+                }
+                var test= area.children[appendPosition];
+
+            }
+        }
+    }
+
+    function canvasRotate(cav,dir) {
+        var cavStyle=cav.style;
+        switch (dir%4) {
+            case 1:
+                cav.style.transform='translate(yPart,0)';
+                cav.style.transform='rotate('+90*dir+'deg)';
+                break;
+            case 2:
+                cavStyle.transform='translate(xPart,yPart)';
+                cav.style.transform='rotate('+90*dir+'deg)';
+                break;
+            case 3:
+                cavStyle.transform='translate(0,xPart)';
+                cav.style.transform='rotate('+90*dir+'deg)';
+                break;
+            default:
+                cavStyle.transform='translate(0,0)';
+                cav.style.transform='rotate('+90*dir+'deg)';
+                break;
+        }
+    }
+    var srcTarget;
+    var desTarget;
+    area.addEventListener('click',function (e){
+        if(e.target.nodeName==='CANVAS'){
+            var dir=e.target.getAttribute('dir');
+            dir++;
+            e.target.setAttribute('dir',dir);
+            canvasRotate(e.target,dir);
+            if(Success()){
+                reP.innerHTML='You win!';
+            }
+        }
+    })
+    area.addEventListener('dragstart',function(e){
+        srcTarget=e.target;
+    })
+    area.addEventListener('dragover',function(e){
+        e.preventDefault();
+    })
+    area.addEventListener('drop',function(e){
+        desTarget=e.target;
+        if(srcTarget!==desTarget){
+            var preSrcCanvas=srcTarget.previousSibling;
+            var preDesCanvas=desTarget.previousSibling;
+            if(preSrcCanvas){
+                preSrcCanvas.after(desTarget);
+            }
+            else{
+                area.children[0].before(desTarget);
+            }
+            if(preDesCanvas){
+                preDesCanvas.after(srcTarget);
+            }
+            else{
+                area.children[0].before(srcTarget);
+            }
+            var desPosition=desTarget.id.slice(3,desTarget.id.length);
+            var desTarget=srcTarget;
+            if(Success()){
+                reP.innerHTML='You win!';
+            }
+        }
+    })
+
+    function Success(){
+        for(var i=0;i<area.childElementCount;i++){
+            if(area.children[i].getAttribute('dir')%4!==0){
+                return false;
+            }
+            var test=area.children[i].id.slice(3,area.children[i].id.length);
+            if(i.toString()!==area.children[i].id.slice(3,area.children[i].id.length)){
+                return false;
+            }
+        }
+        return true;
+    }
+    
+</script>
